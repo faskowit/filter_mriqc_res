@@ -3,8 +3,30 @@
 # organize the information into a format (data frames) that will be amenable for
 # sorting the data as appropriate
 
+# load required package
+require("outliers")
+
+################################################################################
+
+cmdLineArgs <- commandArgs(trailingOnly = TRUE)
+
 # where the data's at
-inputTSV <- paste(getwd(),'/data/raw/group_bold.tsv', sep = '')
+inputTSV <- cmdLineArgs[1]
+outDir <- cmdLineArgs[2]
+fdPrcntThr <- 25 
+if (length(cmdLineArgs) > 2)
+{
+  fdPrcntThr <- as.numeric(cmdLineArgs[3])
+}
+print(paste("fd thresh set to: ",as.character(fdPrcntThr),sep=''))
+
+# read 
+if (!file.exists(inputTSV)) {
+  stop("input tsv does not seem to exist")
+} 
+
+# inputTSV <- paste(getwd(),'/data/raw/group_bold.tsv', sep = '')
+print(paste("inputTSV: ",inputTSV,sep=''))
 
 ################################################################################
 # init list
@@ -18,8 +40,7 @@ mriqcDF['sub_id'] <- rapply(tmpDat, function(x){paste(sub('sub-','',x[1]))})
 ################################################################################
 # first threshold based on fd outlier percentage
 
-OUTLIER_THR <- 25
-othr_bool <- mriqcDF$fd_perc >= OUTLIER_THR
+othr_bool <- mriqcDF$fd_perc >= fdPrcntThr
 
 ################################################################################
 # use functional IQM 
@@ -43,7 +64,7 @@ oiqm_bool <- rowSums(outlmat) >= 4
 
 outl_bool <- (othr_bool | oiqm_bool)
 
-byScanDf <- data.frame("oscans" = mriqcDF$bids_name[outl_bool])
+byScanDf <- data.frame("outlier_scans" = mriqcDF$bids_name[outl_bool])
 
 ################################################################################
 # per subject
@@ -58,12 +79,21 @@ for (subIdx in 1:length(uniqSubs))
     ss_oscans <- (mriqcDF$sub_id == ss) & outl_bool
     
     tot_scans[subIdx] <-  sum(ss_scans)
-    prcnt_oscans[subIdx] <- sum(ss_oscans) / sum(ss_scans)
+    prcnt_oscans[subIdx] <- format(sum(ss_oscans) / sum(ss_scans) * 100, digits = 0) 
 }
 
 bySubDf <- data.frame("sub_name" = uniqSubs, 
                       "total_scans" = tot_scans, 
-                      "prcnt_oscans" = prcnt_oscans)
+                      "prcnt_outlier_scans" = prcnt_oscans)
+
+################################################################################
+# write output
+
+write.table(byScanDf, paste(outDir, '/bold_outlier_scans.csv', sep=''),
+            sep=',', row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+write.table(bySubDf, paste(outDir, '/bold_outlier_sub_stats.csv', sep=''),
+            sep=',', row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 
 
