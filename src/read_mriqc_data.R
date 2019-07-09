@@ -43,12 +43,13 @@ oiqm_bool <- rowSums(outlmat) >= 4
 
 outl_bool <- (othr_bool | oiqm_bool)
 
+byScanDf <- data.frame("oscans" = mriqcDF$bids_name[outl_bool])
+
 ################################################################################
 # per subject
 # for each subject, how many of available scans are outlier scans?
 
-uniqSubs <- unique(mriqcDF$sub_id)
-prcnt_oscans <- c()
+uniqSubs <- unique(mriqcDF$sub_id) ; prcnt_oscans <- c() ; tot_scans <- c()
 
 for (subIdx in 1:length(uniqSubs))
 {
@@ -56,13 +57,13 @@ for (subIdx in 1:length(uniqSubs))
     ss_scans <- mriqcDF$sub_id == ss
     ss_oscans <- (mriqcDF$sub_id == ss) & outl_bool
     
+    tot_scans[subIdx] <-  sum(ss_scans)
     prcnt_oscans[subIdx] <- sum(ss_oscans) / sum(ss_scans)
 }
 
-newDf <- data.frame("sub_name" = uniqSubs)
-#
-
-
+bySubDf <- data.frame("sub_name" = uniqSubs, 
+                      "total_scans" = tot_scans, 
+                      "prcnt_oscans" = prcnt_oscans)
 
 
 
