@@ -89,10 +89,14 @@ bySubDf <- data.frame("sub_name" = uniqSubs,
 ################################################################################
 # write output
 
-write.table(byScanDf, paste(outDir, '/bold_outlier_scans.csv', sep=''),
+outFile=paste(outDir, '/bold_outlier_scans.csv', sep='')
+print(paste('outFile: ',outFile,sep=''))
+write.table(byScanDf, outFile,
             sep=',', row.names = FALSE, col.names = FALSE, quote = FALSE)
 
-write.table(bySubDf, paste(outDir, '/bold_outlier_sub_stats.csv', sep=''),
+outFile=paste(outDir, '/bold_outlier_sub_stats.csv', sep='')
+print(paste('outFile: ',outFile,sep=''))
+write.table(bySubDf, outFile,
             sep=',', row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 
