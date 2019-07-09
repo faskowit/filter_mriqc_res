@@ -4,55 +4,66 @@
 # sorting the data as appropriate
 
 # where the data's at
-inputTSV <- '/home/jfaskowi/JOSHSTUFF/projects/filter_mriqc_res/data/raw/group_bold.tsv'
+inputTSV <- paste(getwd(),'/data/raw/group_bold.tsv', sep = '')
 
 ################################################################################
 # init list
 
-inputTab <- read.table(inputTSV, sep = '\t' , header = TRUE )
+mriqcDF <- read.table(inputTSV, sep = '\t' , header = TRUE )
 
-tmpStr <- rapply(inputTab, function(x){paste(sub('sub-','',x[1]),'-',x[2],sep = '')})
-t1_mriqcDf['sub_name'] <- tmpStr
-
-################################################################################
-# parse the mriqc fmri file
-
-tmpFileName <- dir(qcmetListbPath, pattern = "mri_qc_group_bold.tsv", full.names = TRUE)
-fmri_mriqcDat <- read.table(tmpFileName, header = TRUE, sep = '\t')
-
-acq1400Df <- fmri_mriqcDat[grep(".*acq-1400_bold",fmri_mriqcDat$bids_name),]
-attr(acq1400Df,"acqname") <- "acq-1400"
-acq2500Df <- fmri_mriqcDat[grep(".*acq-2500_bold",fmri_mriqcDat$bids_name),]
-attr(acq2500Df,"acqname") <- "acq-2500"
-acq645Df <- fmri_mriqcDat[grep(".*acq-645_bold",fmri_mriqcDat$bids_name),]
-attr(acq645Df,"acqname") <- "acq-645"
-
-tmpDat <- strsplit(as.character(acq1400Df$bids_name),split = '_')
-tmpStr <- rapply(tmpDat, function(x){paste(sub('sub-','',x[1]),'-',x[2],sep = '')})
-acq1400Df['sub_name'] <- tmpStr
-
-tmpDat <- strsplit(as.character(acq2500Df$bids_name),split = '_')
-tmpStr <- rapply(tmpDat, function(x){paste(sub('sub-','',x[1]),'-',x[2],sep = '')})
-acq2500Df['sub_name'] <- tmpStr
-
-tmpDat <- strsplit(as.character(acq645Df$bids_name),split = '_')
-tmpStr <- rapply(tmpDat, function(x){paste(sub('sub-','',x[1]),'-',x[2],sep = '')})
-acq645Df['sub_name'] <- tmpStr
-
-fmri_mriqc_list <- list() 
-fmri_mriqc_list[[1]] <- acq1400Df 
-fmri_mriqc_list[[2]] <- acq2500Df 
-fmri_mriqc_list[[3]] <- acq645Df 
+# add subject session
+tmpDat <- strsplit(as.character(mriqcDF$bids_name),split = '_')
+mriqcDF['sub_id'] <- rapply(tmpDat, function(x){paste(sub('sub-','',x[1]))})
 
 ################################################################################
-# parse the mriqc t1 file
+# first threshold based on fd outlier percentage
 
-tmpFileName <- dir(qcmetListbPath, pattern = "mri_qc_group_T1w.tsv", full.names = TRUE)
-t1_mriqcDf <- read.table(tmpFileName, header = TRUE, sep = '\t')
+OUTLIER_THR <- 25
+othr_bool <- mriqcDF$fd_perc >= OUTLIER_THR
 
-t1_mriqcDat <- strsplit(as.character(t1_mriqcDf$bids_name),split = '_')
-tmpStr <- rapply(t1_mriqcDat, function(x){paste(sub('sub-','',x[1]),'-',x[2],sep = '')})
-t1_mriqcDf['sub_name'] <- tmpStr
+################################################################################
+# use functional IQM 
+
+outlmat <- matrix(0, nrow = nrow(mriqcDF), ncol = 7)
+# true if outlier
+# temporal measurements
+outlmat[,1] <- outliers::scores(mriqcDF$dvars_nstd, type = "iqr", lim = 1.5)
+outlmat[,2] <- outliers::scores(mriqcDF$tsnr, type = "iqr") < -1.5 # lower is worse
+outlmat[,3] <- outliers::scores(mriqcDF$fd_mean, type = "iqr", lim = 1.5)
+outlmat[,4] <- outliers::scores(mriqcDF$aor, type = "iqr", lim = 1.5)
+outlmat[,5] <- outliers::scores(mriqcDF$aqi, type = "iqr", lim = 1.5)
+# spatial measurements
+outlmat[,6] <- outliers::scores(mriqcDF$snr, type = "iqr") < -1.5 # lower is worse
+outlmat[,7] <- outliers::scores(mriqcDF$efc, type = "iqr", lim = 1.5)
+
+oiqm_bool <- rowSums(outlmat) >= 4
+
+################################################################################
+# outliers
+
+outl_bool <- (othr_bool | oiqm_bool)
+
+################################################################################
+# per subject
+# for each subject, how many of available scans are outlier scans?
+
+uniqSubs <- unique(mriqcDF$sub_id)
+prcnt_oscans <- c()
+
+for (subIdx in 1:length(uniqSubs))
+{
+    ss <- uniqSubs[subIdx]
+    ss_scans <- mriqcDF$sub_id == ss
+    ss_oscans <- (mriqcDF$sub_id == ss) & outl_bool
+    
+    prcnt_oscans[subIdx] <- sum(ss_oscans) / sum(ss_scans)
+}
+
+newDf <- data.frame("sub_name" = uniqSubs)
+#
+
+
+
 
 
 
