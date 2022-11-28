@@ -65,6 +65,7 @@ oiqm_bool <- rowSums(outlmat) >= 4
 outl_bool <- (othr_bool | oiqm_bool)
 
 byScanDf <- data.frame("outlier_scans" = mriqcDF$bids_name[outl_bool])
+byScanDf2 <- data.frame("keep_scans" = mriqcDF$bids_name[!outl_bool])
 
 ################################################################################
 # per subject
@@ -92,6 +93,11 @@ bySubDf <- data.frame("sub_name" = uniqSubs,
 outFile=paste(outDir, '/bold_outlier_scans.csv', sep='')
 print(paste('outFile: ',outFile,sep=''))
 write.table(byScanDf, outFile,
+            sep=',', row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+outFile=paste(outDir, '/bold_keep_scans.csv', sep='')
+print(paste('outFile: ',outFile,sep=''))
+write.table(byScanDf2, outFile,
             sep=',', row.names = FALSE, col.names = FALSE, quote = FALSE)
 
 outFile=paste(outDir, '/bold_outlier_sub_stats.csv', sep='')
